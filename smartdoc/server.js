@@ -1,6 +1,6 @@
 require("dotenv").config();
 const express = require("express");
-const connectDB = require("../config/index.js");
+const connectDB = require("./config/index.js");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const helmet = require('helmet');
@@ -10,8 +10,8 @@ const compression = require('compression');
 // const path = require("path");
 const app = express();
 const bodyParser = require("body-parser")
-// const seedRoles = require('../controllers/roleController.js');
-const { FileUtility } = require('../utils/fileUtility.js');
+// const seedRoles = require('./controllers/roleController.js');
+const { FileUtility } = require('./utils/fileUtility.js');
 
 
 app.use(helmet());
@@ -53,9 +53,9 @@ app.get('/', (req, res) => {
 
 
 // Routes
-const authRoutes = require("../routes/authRoutes.js");
-const userProfileRoutes = require("../routes/userProfileRoute.js");
-const chatSessionRoutes = require('../routes/chatSessionRoute.js');
+const authRoutes = require("./routes/authRoutes.js");
+const userProfileRoutes = require("./routes/userProfileRoute.js");
+const chatSessionRoutes = require('./routes/chatSessionRoute.js');
 
 // const paymentRoutes = require("../routes/paymentRoute.js");
 

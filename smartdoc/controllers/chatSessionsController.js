@@ -136,13 +136,13 @@ const sendSummaryToDoctor = async (req, res) => {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const { summaryId, doctorId } = req.body;
-    const userId = req.user._id;
+    const { summaryId, userId } = req.body; // Changed doctorId to userId
+    const patientId = req.user._id;
 
     const summary = await ChatService.sendSummaryToDoctor({
       summaryId,
-      doctorId,
       userId,
+      patientId,
     });
 
     res.json({

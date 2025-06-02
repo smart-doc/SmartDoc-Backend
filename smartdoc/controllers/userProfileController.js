@@ -216,4 +216,59 @@ const getAllProfiles = async (req, res) => {
   }
 }
 
-module.exports = { updateUserProfile, getSignedinUserProfile, getUserProfile, getAllProfiles };
+const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+    const doctorId = req.user.doctorId; // Assumes doctorId in JWT
+
+    const doctor = await Doctor.findByIdAndUpdate(
+      doctorId,
+      { fcmToken },
+      { new: true }
+    );
+
+    if (!doctor) {
+      return res.status(404).json({ success: false, error: 'Doctor not found' });
+    }
+
+    res.json({ success: true, doctor });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+const getUsersByType = async (req, res) => {
+  try {
+    const { type } = req.params;
+    if (!['Doctor', 'Hospital', 'Patient'].includes(type)) {
+      return res.status(400).json({ success: false, error: 'Invalid user type' });
+    }
+
+    const users = await User.find({
+      $or: [{ type }, { 'role.name': type }],
+    })
+      .select('name email type role specialty') // Exclude sensitive fields
+      .sort({ name: 1 });
+
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+const getDoctors = async (req, res) => {
+  req.params.type = 'Doctor';
+  await getUsersByType(req, res);
+};
+
+const getHospitals = async (req, res) => {
+  req.params.type = 'Hospital';
+  await getUsersByType(req, res);
+};
+
+const getPatients = async (req, res) => {
+  req.params.type = 'Patient';
+  await getUsersByType(req, res);
+};
+
+module.exports = { updateUserProfile, getSignedinUserProfile, getUserProfile, getAllProfiles, updateFcmToken, getDoctors, getHospitals, getPatients};

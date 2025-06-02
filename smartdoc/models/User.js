@@ -225,6 +225,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     maxlength: 100
   },
+   fcmToken: { 
+    type: String 
+  }, // Store FCM token
   
   // Security & Session Management
   isActive: {

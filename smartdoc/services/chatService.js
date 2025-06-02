@@ -1,7 +1,9 @@
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const {Message, ChatSession, MedicalSummary} = require('../models/chatSessions'); 
-
+const admin = require('../config/firebase');
+const Notification = require('../models/Notification');
+const User = require('../models/User')
 
 class ChatService {
       constructor() {
@@ -223,27 +225,34 @@ class ChatService {
     return medicalSummary;
   }
 
-  async sendSummaryToDoctor({ summaryId, doctorId, userId }) {
-    const summary = await MedicalSummary.findOne({ _id: summaryId, userId });
-    if (!summary) {
-      throw new Error('Summary not found or unauthorized');
-    }
-
-    const updatedSummary = await MedicalSummary.findByIdAndUpdate(
-      summaryId,
-      {
-        doctorId,
-        status: 'sent_to_doctor',
-        updatedAt: new Date(),
-      },
-      { new: true }
-    );
-
-    // Notify doctor (placeholder)
-    await this.notifyDoctor(doctorId, updatedSummary);
-
-    return updatedSummary;
+  async sendSummaryToDoctor({ summaryId, userId, patientId }) {
+  const summary = await MedicalSummary.findOne({ _id: summaryId, userId: patientId });
+  if (!summary) {
+    throw new Error('Summary not found or unauthorized');
   }
+
+  // Verify recipient is a doctor
+  const doctor = await User.findOne({
+    _id: userId,
+    $or: [{ type: 'Doctor' }, { 'role.name': 'Doctor' }],
+  });
+  if (!doctor) {
+    throw new Error('Recipient is not a doctor');
+  }
+
+  const updatedSummary = await MedicalSummary.findByIdAndUpdate(
+    summaryId,
+    {
+      doctorId: userId, // Store as doctorId for reference
+      status: 'sent_to_doctor',
+      updatedAt: new Date(),
+    },
+    { new: true }
+  );
+
+  await this.notifyDoctor(userId, updatedSummary);
+  return updatedSummary;
+}
 
   async transcribeAudio(audioUrl) {
     try {
@@ -285,9 +294,50 @@ class ChatService {
     };
   }
 
-  async notifyDoctor(doctorId, summary) {
-    // Placeholder: Implement doctor notification (e.g., WhatsApp via Twilio)
-    console.log(`Notifying doctor ${doctorId} about summary ${summary._id}`);
+  async notifyDoctor(userId, summary) {
+    try {
+      // Find doctor by user ID and type/role
+      const doctor = await User.findOne({
+        _id: userId,
+        $or: [{ type: 'Doctor' }, { 'role.name': 'Doctor' }],
+      });
+      if (!doctor) {
+        throw new Error('Doctor not found');
+      }
+
+      // Create in-app notification
+      const notification = new Notification({
+        recipientId: userId,
+        type: 'summary_shared',
+        title: 'New Patient Summary',
+        message: `A medical summary has been shared for patient session(s): ${summary.sessionIds.join(', ')}`,
+        data: { summaryId: summary._id.toString() },
+      });
+      await notification.save();
+
+      // Send push notification if FCM token exists
+      if (doctor.fcmToken) {
+        const message = {
+          notification: {
+            title: 'New Patient Summary',
+            body: `A medical summary has been shared for patient session(s): ${summary.sessionIds.join(', ')}`,
+          },
+          data: {
+            summaryId: summary._id.toString(),
+            click_action: 'OPEN_SUMMARY',
+          },
+          token: doctor.fcmToken,
+        };
+
+        await admin.messaging().send(message);
+        console.log(`Push notification sent to doctor ${userId}`);
+      } else {
+        console.log(`No FCM token for doctor ${userId}`);
+      }
+    } catch (error) {
+      console.error(`Failed to notify doctor ${userId}:`, error.message);
+      throw new Error(`Notification failed: ${error.message}`);
+    }
   }
 }
 
