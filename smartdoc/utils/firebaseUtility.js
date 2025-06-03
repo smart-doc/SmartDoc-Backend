@@ -32,6 +32,19 @@ export const requestFCMToken = async () => {
     })
 }
 
+messaging.onBackgroundMessage((payload) => {
+  console.log('Background message received:', payload);
+  
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: payload.notification.icon || '/firebase-logo.png',
+    badge: '/badge-icon.png'
+  };
+
+  self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
 // export async function requestNotificationPermission() {
 //   try {
 //     const permission = await Notification.requestPermission();
