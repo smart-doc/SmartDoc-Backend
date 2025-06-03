@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer')
 const crypto = require("crypto")
 require("dotenv").config();
 const path = require('path');
-const Role = require("../models/role.js")
+const Role = require("../models/Role.js")
 const{ User} = require ("../models/User.js")
 const jwt = require("jsonwebtoken")
 const OTPVerification = require("../models/OTPVerification.js")
