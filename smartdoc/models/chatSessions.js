@@ -59,11 +59,14 @@ const messageSchema = new mongoose.Schema({
     required: true 
   },
   content: {
-    text: String,
-    audioUrl: String,
-    audioTranscript: String,
-    imageUrl: String,
-    imageDescription: String
+    type: {
+      text: String,
+      audioUrl: String,
+      audioTranscript: String,
+      imageUrl: String,
+      imageDescription: String
+    },
+    required: true 
   },
   metadata: {
     audioFormat: String,
@@ -84,6 +87,15 @@ const messageSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   }
+}, {
+  toJSON: {
+    virtuals: true,
+    transform: (doc, ret) => {
+      delete ret.__v; // Remove __v
+      return ret; // Preserve content
+    }
+  },
+  toObject: { virtuals: true }
 });
 
 // Medical Summary Schema

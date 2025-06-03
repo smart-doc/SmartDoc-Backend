@@ -55,10 +55,13 @@ const listUserSessions = async (req, res) => {
 
 const sendMessage = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
     const { sessionId, messageType, content } = req.body;
     const userId = req.user._id;
-
-    console.log('Processing sendMessage:', { sessionId, messageType, content, userId });
 
     const { userMessage, aiResponse } = await ChatService.sendMessage({
       sessionId,
@@ -67,17 +70,16 @@ const sendMessage = async (req, res) => {
       userId,
     });
 
+    // Ensure aiResponse includes content
+    const aiMessage = aiResponse.toJSON ? aiResponse.toJSON() : aiResponse;
+
     res.json({
       success: true,
       userMessage,
-      aiMessage: aiResponse,
+      aiMessage,
     });
   } catch (error) {
-    console.error('sendMessage error:', error.message);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 

@@ -88,52 +88,56 @@ class ChatService {
 
     extractMessageContent(message) {
     if (message.messageType === 'text') {
-        return message.content.text || message.content || '[Text message]';
+      return message.content.text || message.content || '[Text message]';
     } else if (message.messageType === 'audio') {
-        return message.content.audioTranscript || '[Audio message]';
+      return message.content.audioTranscript || '[Awaiting audio transcription]';
     } else if (message.messageType === 'image') {
-        return message.content.imageDescription || '[Image shared]';
+      return message.content.imageDescription || '[Awaiting image analysis]';
     }
-    return message.content || '[Unknown message type]';
-    }
+    return message.content.text || message.content || '[Unknown message type]';
+  }
 
   async getAIResponse(sessionId, userMessage) {
-  try {
-    // Use the latest user message content as the query
-    const query = this.extractMessageContent(userMessage);
+    try {
+      const query = this.extractMessageContent(userMessage);
 
-    console.log('Sending to FastAPI:', { query });
+      console.log('Sending to FastAPI:', { query });
 
-    const aiResponse = await axios.post(process.env.FASTAPI_CHAT_ENDPOINT, {
-      query,
-    }, {
-      timeout: 10000, // 10s timeout
-    });
+      const aiResponse = await axios.post(process.env.FASTAPI_CHAT_ENDPOINT, {
+        query,
+      }, {
+        timeout: 10000,
+      });
 
-    if (!aiResponse.data?.result) {
-      throw new Error('Empty or invalid FastAPI response');
+      if (!aiResponse.data?.result) {
+        throw new Error('Empty or invalid FastAPI response');
+      }
+
+      const aiMessage = new Message({
+        sessionId,
+        messageId: uuidv4(),
+        sender: 'ai',
+        messageType: 'text',
+        content: { text: aiResponse.data.result }, // Set content.text
+        metadata: { processingStatus: 'completed' },
+      });
+
+      await aiMessage.save();
+
+      // Fetch saved message to ensure content is included
+      const savedAiMessage = await Message.findById(aiMessage._id).lean();
+
+      return savedAiMessage;
+    } catch (error) {
+      console.error('FastAPI error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        code: error.code,
+      });
+      throw new Error(`AI response failed: ${error.message || 'Unknown error'}`);
     }
-
-    const aiMessage = new Message({
-      sessionId,
-      messageId: uuidv4(),
-      sender: 'ai',
-      messageType: 'text',
-      content: aiResponse.data.result, // Use 'result' field
-    });
-
-    await aiMessage.save();
-    return aiMessage;
-  } catch (error) {
-    console.error('FastAPI error:', {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data,
-      code: error.code,
-    });
-    throw new Error(`AI response failed: ${error.message || 'Unknown error'}`);
   }
-}
     
   async sendMessage({ sessionId, messageType, content, userId }) {
     // Verify session exists and belongs to user
