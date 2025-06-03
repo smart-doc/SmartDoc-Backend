@@ -1,5 +1,8 @@
 var admin = require("firebase-admin");
 
+importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js')
+
 const serviceAccount = {
   type: process.env.FIREBASE_TYPE,
   project_id: process.env.FIREBASE_PROJECT_ID,
@@ -16,6 +19,19 @@ const serviceAccount = {
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
+});
+
+messaging.onBackgroundMessage((payload) => {
+  console.log('Background message received:', payload);
+  
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: payload.notification.icon || '/firebase-logo.png',
+    badge: '/badge-icon.png'
+  };
+
+  self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 module.exports = admin;

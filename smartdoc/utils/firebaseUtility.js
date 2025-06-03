@@ -1,4 +1,6 @@
 const {initializeApp} = require("firebase/app")
+import { messaging } from '../config/firebase';
+import { getToken, onMessage } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCefZ-h3ixiJkaiLfj_JIY3GGD4dA4JJjg",
@@ -28,4 +30,58 @@ export const requestFCMToken = async () => {
         console.error("Error getting FCM token: ", err)
         throw err;
     })
+}
+
+// export async function requestNotificationPermission() {
+//   try {
+//     const permission = await Notification.requestPermission();
+    
+//     if (permission === 'granted') {
+//       console.log('Notification permission granted');
+//       const token = await getToken(messaging, { vapidKey: vapidKey });
+      
+//       if (token) {
+//         console.log('FCM Token:', token);
+//         // Send this token to your server to store for the user
+//         await sendTokenToServer(token);
+//         return token;
+//       } else {
+//         console.log('No registration token available');
+//       }
+//     } else {
+//       console.log('Notification permission denied');
+//     }
+//   } catch (error) {
+//     console.error('Error getting notification permission:', error);
+//   }
+// }
+
+async function sendTokenToServer(token) {
+  // Replace with your actual server endpoint
+  try {
+    await fetch('/api/save-fcm-token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+  } catch (error) {
+    console.error('Error sending token to server:', error);
+  }
+}
+
+// Handle foreground messages
+export function listenForMessages() {
+  onMessage(messaging, (payload) => {
+    console.log('Foreground message received:', payload);
+    
+    // Display notification manually for foreground messages
+    if (Notification.permission === 'granted') {
+      new Notification(payload.notification.title, {
+        body: payload.notification.body,
+        icon: payload.notification.icon || '/firebase-logo.png'
+      });
+    }
+  });
 }
