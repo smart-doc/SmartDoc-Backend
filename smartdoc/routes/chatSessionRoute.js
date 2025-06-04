@@ -20,24 +20,86 @@ router.post('/messages', protectRoute, sendMessageValidation, validateRequest,
 );
 
 // Send audio message
-router.post('/messages/audio', protectRoute, upload.single('audio'),
-  [body('sessionId').notEmpty().withMessage('Session ID is required')],
-  validateRequest,
-  async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ success: false, error: 'Audio file is required' });
-      }
-
-      req.body.messageType = 'audio';
-      req.body.content = { audioUrl: `/uploads/audio/${req.file.filename}` };
-
-      await sendMessage(req, res);
-    } catch (error) {
-      res.status(500).json({ success: false, error: error.message });
+router.post('/messages/audio', upload.single('audio'), async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId || !req.file) {
+      return res.status(400).json({ error: 'sessionId and audio file are required' });
     }
+
+    // Validate session (assuming you have a ChatSession model)
+    const session = await ChatSession.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Save audio file
+    const audioUrl = `/uploads/audio/${req.file.filename}`;
+    const audioPath = path.join(__dirname, '..', audioUrl);
+
+    // Transcribe audio
+    const audioTranscript = await transcribeAudio(audioPath);
+
+    // Save user message
+    const userMessage = new Message({
+      sessionId,
+      sender: 'user',
+      messageType: 'audio',
+      content: { audioUrl, audioTranscript },
+      timestamp: new Date(),
+    });
+    await userMessage.save();
+
+    // Call chat-voice endpoint
+    const voiceResponse = await axios.post(
+      'https://smartdoc.zeabur.app/chat/chat-voice',
+      {
+        query: audioTranscript,
+        sessionId,
+        messageId: userMessage._id.toString(),
+      },
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+
+    const { result: aiResponse, audioUrl: aiAudioUrl } = voiceResponse.data;
+
+    // Save AI message
+    const aiMessage = new Message({
+      sessionId,
+      sender: 'ai',
+      messageType: aiAudioUrl ? 'audio' : 'text',
+      content: {
+        audioUrl: aiAudioUrl,
+        audioTranscript: aiAudioUrl ? aiResponse : null,
+        text: aiAudioUrl ? null : aiResponse,
+      },
+      timestamp: new Date(),
+    });
+    await aiMessage.save();
+
+    res.status(200).json({
+      userMessage: {
+        messageId: userMessage._id,
+        sender: userMessage.sender,
+        messageType: userMessage.messageType,
+        content: userMessage.content,
+        timestamp: userMessage.timestamp,
+      },
+      aiMessage: {
+        messageId: aiMessage._id,
+        sender: aiMessage.sender,
+        messageType: aiMessage.messageType,
+        content: aiMessage.content,
+        timestamp: aiMessage.timestamp,
+      },
+    });
+  } catch (error) {
+    console.error('Audio message error:', error.message);
+    res.status(500).json({ error: 'Failed to process audio message' });
   }
-);
+});
 
 router.post('/messages/image', protectRoute, upload.single('image'),
   [body('sessionId').notEmpty().withMessage('Session ID is required')],
