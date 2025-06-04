@@ -23,7 +23,7 @@ app.use(cookieParser());
 
 app.use(cors({
   origin: function(origin, callback) {
-    const allowedOrigins = ['*'];
+    const allowedOrigins = ['http://localhost:5173'];
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
