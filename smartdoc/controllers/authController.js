@@ -306,77 +306,119 @@ const adminRegister = async (req, res) => {
 };
 
 const hospitalRegister = async (req, res) => {
-    try{
-        const { hospitalName, phoneNumber, email, password, address, city, state, country, postalCode, latitude, longitude, 
-            registrationNumber, website, description, specialties, emergencyServices, bedCapacity, accreditation, open24Hours, schedule
-        } = req.body;
+  try {
+    const {
+      hospitalName,
+      phoneNumber,
+      email,
+      password,
+      address,
+      city,
+      state,
+      country,
+      postalCode,
+      latitude,
+      longitude,
+      registrationNumber,
+      website,
+      description,
+      specialties,
+      emergencyServices,
+      bedCapacity,
+      accreditation,
+      open24Hours,
+      schedule,
+    } = req.body;
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Validate required fields
+    if (!hospitalName) {
+      return res.status(400).json({ error: 'Hospital name is required' });
+    }
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+    if (!phoneNumber) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: "Invalid email format" });
+      return res.status(400).json({ error: 'Invalid email format' });
     }
 
+    // Validate password
     if (password.length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters long" });
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
     }
-
     const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
     if (!passwordRegex.test(password)) {
       return res.status(400).json({
-        message: 'Password must contain at least one uppercase letter and one special character.',
+        error: 'Password must contain at least one uppercase letter and one special character.',
       });
     }
 
+    // Validate phone number
     if (phoneNumber.length !== 11) {
-      return res.status(400).json({ error: "Phone Number must be 11 digits long" });
+      return res.status(400).json({ error: 'Phone number must be 11 digits long' });
     }
 
+    // Check for existing phone number or email
     const existingPhoneNumber = await User.findOne({ phoneNumber });
     if (existingPhoneNumber) {
-      return res.status(400).json({ error: "A user already has this phone number. Kindly use another" });
+      return res.status(400).json({ error: 'A user already has this phone number. Kindly use another' });
     }
-
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
-      return res.status(400).json({ error: "Email is already taken" });
+      return res.status(400).json({ error: 'Email is already taken' });
     }
 
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Find hospital role
     const userRole = await Role.findOne({ name: 'Hospital' });
+    if (!userRole) {
+      return res.status(400).json({ error: 'Hospital role not found' });
+    }
 
+    // Create new user
     const newUser = new User({
-      hospitalName, 
-      phoneNumber, 
-      email, 
-      address, 
-      city, 
-      state, 
-      country, 
-      postalCode, 
-      latitude, 
-      longitude,   
-      registrationNumber, 
-      website, 
-      description, 
-      specialties, 
-      emergencyServices, 
-      bedCapacity, 
-      accreditation, 
+      hospitalName,
+      phoneNumber,
+      email,
+      address,
+      city,
+      state,
+      country,
+      postalCode,
+      latitude,
+      longitude,
+      registrationNumber,
+      website,
+      description,
+      specialties,
+      emergencyServices,
+      bedCapacity,
+      accreditation,
       open24Hours,
       schedule,
-      status: "active",
-      type: "Hospital",
+      status: 'active',
+      type: 'Hospital',
       password: hashedPassword,
       isEmailVerified: false,
-      role: userRole._id
+      role: userRole._id,
     });
 
     await newUser.save();
 
     const populatedUser = await User.findById(newUser._id).populate('role');
 
+    // Generate and save OTP
     const otp = generateOTP();
     const hashedOTP = await bcrypt.hash(otp, 10);
 
@@ -387,6 +429,7 @@ const hospitalRegister = async (req, res) => {
       expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
     });
 
+    // Send OTP email
     const emailHtml = `
       <p><strong>Hi there</strong>,<br>
       Thank you for signing up on SmartDoc.<br>
@@ -410,14 +453,14 @@ const hospitalRegister = async (req, res) => {
         phoneNumber: populatedUser.phoneNumber,
         role: {
           _id: populatedUser.role._id,
-          name: populatedUser.role.name
-        }
+          name: populatedUser.role.name,
+        },
       },
-      });
-    } catch (error) {
-        console.error("Error in hospitalSignUp controller:", error.message);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
+    });
+  } catch (error) {
+    console.error('Error in hospitalRegister controller:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 };
 
 const doctorRegister = async (req, res) => {
