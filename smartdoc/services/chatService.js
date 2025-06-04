@@ -40,10 +40,10 @@ class ChatService {
   await this.twilioClient.messages.create({
     from: process.env.TWILIO_PHONE_NUMBER,
     to: from,
-    body: aiResponse.content,
+    body: aiResponse.data.result,
   });
 
-  return { sessionId, response: aiResponse.content };
+  return { sessionId, response: aiResponse.data.result };
 }
 
   async processAudioMessage(message) {

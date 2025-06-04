@@ -606,7 +606,7 @@ const patientRegister = async (req, res) => {
         type: "Patient",
         password: hashedPassword,
         emailVerified: false,
-        // role: userRole._id
+        role: userRole._id
         });
 
         await newUser.save();
@@ -644,10 +644,10 @@ const patientRegister = async (req, res) => {
             lastName: populatedUser.lastName,
             email: populatedUser.email,
             type: populatedUser.type,
-            // role: {
-            // _id: populatedUser.role._id,
-            // name: populatedUser.role.name
-            // }
+            role: {
+            _id: populatedUser.role._id,
+            name: populatedUser.role.name
+            }
         },
         });
     } catch (error) {

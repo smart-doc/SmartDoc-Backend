@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
+
 // const cloudinary = require("cloudinary").v2
 // const path = require("path");
 const app = express();
@@ -56,13 +57,19 @@ app.get('/', (req, res) => {
 const authRoutes = require("./routes/authRoutes.js");
 const userProfileRoutes = require("./routes/userProfileRoute.js");
 const chatSessionRoutes = require('./routes/chatSessionRoute.js');
+// const webhookRoutes = require('./routes/webhookRoutes.js')
+// const ReminderService = require('./services/reminderService.js')
 
 // const paymentRoutes = require("../routes/paymentRoute.js");
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/user", userProfileRoutes);
 app.use('/api/v1/chat', limiter, chatSessionRoutes);
+// app.use('/api/v1/webhook', webhookRoutes)
 app.use('/uploads', express.static('uploads'));
+
+// const reminderService = new ReminderService();
+// reminderService.startReminderSystem()
 
 
 (async () => {
