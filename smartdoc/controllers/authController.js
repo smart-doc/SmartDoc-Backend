@@ -542,8 +542,8 @@ const doctorRegister = async (req, res) => {
 
 const patientRegister = async (req, res) => {
     try{
-        const {firstName, lastName, email, password, phoneNumber, dateOfBirth, gender, address, city, state, country, postalCode, emmergencyContactName,
-            emmergencyContactPhoneNumber, emmergencyContactRelationship, bloodGroup, height_CM, weight_KG, preferredLanguage, insuranceProvider,
+        const {firstName, lastName, email, password, phoneNumber, dateOfBirth, gender, address, city, state, country, postalCode, emergencyContactName,
+            emergencyContactPhoneNumber, emergencyContactRelationship, bloodGroup, height_CM, weight_KG, preferredLanguage, insuranceProvider,
              insurancePolicyNumber, dataConsent
         } = req.body;
 
@@ -593,9 +593,9 @@ const patientRegister = async (req, res) => {
         state,
         country,
         postalCode,
-        emmergencyContactName,
-        emmergencyContactPhoneNumber,
-        emmergencyContactRelationship,
+        emergencyContactName,
+        emergencyContactPhoneNumber,
+        emergencyContactRelationship,
         bloodGroup,
         height_CM,
         weight_KG,
