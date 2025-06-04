@@ -7,7 +7,7 @@ const User = require('../models/User')
 
 class ChatService {
       constructor() {
-    this.fastApiBaseUrl = process.env.FASTAPI_BASE_URL || 'http://localhost:8000';
+    this.fastApiBaseUrl = process.env.FASTAPI_BASE_URL || 'http://localhost:8080';
   }
 
   async handleWhatsAppMessage(from, body, userId, sessionId) {

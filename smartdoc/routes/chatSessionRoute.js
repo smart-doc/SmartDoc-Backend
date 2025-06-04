@@ -122,7 +122,7 @@ router.get('/users/:userId/summaries',
 );
 
 // Delete chat session (soft delete)
-router.delete('/sessions/:sessionId',
+router.delete('delete/sessions/:sessionId',
   protectRoute,
   sessionParamValidation,
   validateRequest,
