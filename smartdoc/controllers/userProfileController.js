@@ -146,115 +146,115 @@ const updateUserProfile = async (req, res) => {
       return res.status(400).json({ error: 'Document upload is only allowed for Hospital users' });
     }
 
-    // Define allowed fields by user type
-    const allowedFieldsByType = {
-      Admin: [
-        'firstName',
-        'lastName',
-        'email',
-        'phoneNumber',
-        'gender',
-        'address',
-        'city',
-        'state',
-        'country',
-        'postalCode',
-        'preferredLanguage',
-      ],
-      Hospital: [
-        'firstName',
-        'lastName',
-        'email',
-        'phoneNumber',
-        'hospitalName',
-        'address',
-        'city',
-        'state',
-        'country',
-        'postalCode',
-        'registrationNumber',
-        'website',
-        'description',
-        'specialties',
-        'emergencyServices',
-        'bedCapacity',
-        'accreditation',
-        'open24Hours',
-        'schedule',
-        'preferredLanguage',
-        'document', // Add document to allowed fields for Hospital
-      ],
-      Doctor: [
-        'firstName',
-        'lastName',
-        'email',
-        'phoneNumber',
-        'gender',
-        'address',
-        'city',
-        'state',
-        'country',
-        'postalCode',
-        'hospitalId',
-        'specialization',
-        'bio',
-        'availability',
-        'preferredLanguage',
-      ],
-      Patient: [
-        'firstName',
-        'lastName',
-        'email',
-        'phoneNumber',
-        'gender',
-        'address',
-        'city',
-        'state',
-        'country',
-        'postalCode',
-        'dateOfBirth',
-        'emergencyContactName',
-        'emergencyContactPhoneNumber',
-        'emergencyContactRelationship',
-        'bloodGroup',
-        'height_CM',
-        'weight_KG',
-        'preferredLanguage',
-        'insuranceProvider',
-        'insurancePolicyNumber',
-      ],
-    };
+    // // Define allowed fields by user type
+    // const allowedFieldsByType = {
+    //   Admin: [
+    //     'firstName',
+    //     'lastName',
+    //     'email',
+    //     'phoneNumber',
+    //     'gender',
+    //     'address',
+    //     'city',
+    //     'state',
+    //     'country',
+    //     'postalCode',
+    //     'preferredLanguage',
+    //   ],
+    //   Hospital: [
+    //     'firstName',
+    //     'lastName',
+    //     'email',
+    //     'phoneNumber',
+    //     'hospitalName',
+    //     'address',
+    //     'city',
+    //     'state',
+    //     'country',
+    //     'postalCode',
+    //     'registrationNumber',
+    //     'website',
+    //     'description',
+    //     'specialties',
+    //     'emergencyServices',
+    //     'bedCapacity',
+    //     'accreditation',
+    //     'open24Hours',
+    //     'schedule',
+    //     'preferredLanguage',
+    //     'document', // Add document to allowed fields for Hospital
+    //   ],
+    //   Doctor: [
+    //     'firstName',
+    //     'lastName',
+    //     'email',
+    //     'phoneNumber',
+    //     'gender',
+    //     'address',
+    //     'city',
+    //     'state',
+    //     'country',
+    //     'postalCode',
+    //     'hospitalId',
+    //     'specialization',
+    //     'bio',
+    //     'availability',
+    //     'preferredLanguage',
+    //   ],
+    //   Patient: [
+    //     'firstName',
+    //     'lastName',
+    //     'email',
+    //     'phoneNumber',
+    //     'gender',
+    //     'address',
+    //     'city',
+    //     'state',
+    //     'country',
+    //     'postalCode',
+    //     'dateOfBirth',
+    //     'emergencyContactName',
+    //     'emergencyContactPhoneNumber',
+    //     'emergencyContactRelationship',
+    //     'bloodGroup',
+    //     'height_CM',
+    //     'weight_KG',
+    //     'preferredLanguage',
+    //     'insuranceProvider',
+    //     'insurancePolicyNumber',
+    //   ],
+    // };
 
-    const allowedFields = allowedFieldsByType[user.type] || [];
+    // const allowedFields = allowedFieldsByType[user.type] || [];
 
-    // Filter updateFields to only include allowed fields
-    const filteredUpdates = {};
-    Object.keys(updateFields).forEach((key) => {
-      if (allowedFields.includes(key)) {
-        // Only update if the value is not empty/null/undefined
-        if (updateFields[key] !== null && updateFields[key] !== undefined && updateFields[key] !== '') {
-          // Parse arrays and booleans if necessary
-          if (['specialties', 'schedule', 'availability'].includes(key)) {
-            try {
-              filteredUpdates[key] = typeof updateFields[key] === 'string' ? JSON.parse(updateFields[key]) : updateFields[key];
-            } catch (e) {
-              return res.status(400).json({ error: `Invalid format for ${key}` });
-            }
-          } else if (['emergencyServices', 'open24Hours'].includes(key)) {
-            filteredUpdates[key] = updateFields[key] === 'true' || updateFields[key] === true;
-          } else if (['bedCapacity'].includes(key)) {
-            filteredUpdates[key] = Number(updateFields[key]);
-          } else {
-            filteredUpdates[key] = updateFields[key];
-          }
-        }
-      }
-    });
+    // // Filter updateFields to only include allowed fields
+    // const filteredUpdates = {};
+    // Object.keys(updateFields).forEach((key) => {
+    //   if (allowedFields.includes(key)) {
+    //     // Only update if the value is not empty/null/undefined
+    //     if (updateFields[key] !== null && updateFields[key] !== undefined && updateFields[key] !== '') {
+    //       // Parse arrays and booleans if necessary
+    //       if (['specialties', 'schedule', 'availability'].includes(key)) {
+    //         try {
+    //           filteredUpdates[key] = typeof updateFields[key] === 'string' ? JSON.parse(updateFields[key]) : updateFields[key];
+    //         } catch (e) {
+    //           return res.status(400).json({ error: `Invalid format for ${key}` });
+    //         }
+    //       } else if (['emergencyServices', 'open24Hours'].includes(key)) {
+    //         filteredUpdates[key] = updateFields[key] === 'true' || updateFields[key] === true;
+    //       } else if (['bedCapacity'].includes(key)) {
+    //         filteredUpdates[key] = Number(updateFields[key]);
+    //       } else {
+    //         filteredUpdates[key] = updateFields[key];
+    //       }
+    //     }
+    //   }
+    // });
 
-    // Apply filtered updates to user
-    Object.keys(filteredUpdates).forEach((key) => {
-      user[key] = filteredUpdates[key];
-    });
+    // // Apply filtered updates to user
+    // Object.keys(filteredUpdates).forEach((key) => {
+    //   user[key] = filteredUpdates[key];
+    // });
 
     // Save the updated user
     user = await user.save();
