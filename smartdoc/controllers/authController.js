@@ -686,12 +686,12 @@ const signIn = async (req, res) => {
         lastName: user.lastName,
         hospitalName: user.hospitalName,
         email: user.email,
-        phonenumber: user.phonenumber,
+        phonenumber: user.phoneNumber,
         type: user.type,
-        // role: {
-        //   _id: user.role._id,
-        //   name: user.role.name
-        // }
+        role: {
+          _id: user.role._id,
+          name: user.role.name
+        }
       }
     });
 

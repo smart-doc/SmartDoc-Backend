@@ -181,6 +181,10 @@ const userSchema = new mongoose.Schema({
     openTime: String,
     closeTime: String
   }],
+  document: {
+    type: String, // Store file path or URL
+    maxlength: 255
+  },
   
   // Patient-specific fields
   dateOfBirth: {

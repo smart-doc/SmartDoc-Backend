@@ -1,5 +1,6 @@
 const {User} = require("../models/User.js");
 const bcrypt = require("bcrypt");
+const Upload = require("../config/multer.js")
 
 
 const getSignedinUserProfile = async (req, res) => {
@@ -27,23 +28,20 @@ const getUserProfile = async (req, res) => {
 }
 
 const updateUserProfile = async (req, res) => {
-  const userId = req.user._id;
+  const userId = req.user._id; // From JWT middleware
   const { currentPassword, newPassword, ...updateFields } = req.body;
-  
+
   try {
     let user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if ((!newPassword && currentPassword) || (!currentPassword && newPassword)) {
-      return res.status(400).json({ error: "Please provide both current password and new password" });
-    }
-
+    // Handle password update
     if (currentPassword && newPassword) {
       const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) return res.status(400).json({ error: "Current password is incorrect" });
-      
+      if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
+
       if (newPassword.length < 8) {
-        return res.status(400).json({ error: "Password must be at least 8 characters long" });
+        return res.status(400).json({ error: 'Password must be at least 8 characters long' });
       }
 
       const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
@@ -55,134 +53,206 @@ const updateUserProfile = async (req, res) => {
 
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(newPassword, salt);
+    } else if ((currentPassword && !newPassword) || (!currentPassword && newPassword)) {
+      return res.status(400).json({ error: 'Please provide both current password and new password' });
     }
 
+    // Handle email update
     if (updateFields.email && updateFields.email !== user.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(updateFields.email)) {
-        return res.status(400).json({ error: "Invalid email format" });
+        return res.status(400).json({ error: 'Invalid email format' });
       }
-      
-      // Check if email is already taken by another user
-      const existingEmail = await User.findOne({ 
-        email: updateFields.email, 
-        _id: { $ne: userId } 
+
+      const existingEmail = await User.findOne({
+        email: updateFields.email,
+        _id: { $ne: userId },
       });
       if (existingEmail) {
-        return res.status(400).json({ error: "Email is already taken by another user" });
+        return res.status(400).json({ error: 'Email is already taken by another user' });
       }
     }
 
-    // Validate phone number if being updated
+    // Handle phone number update
     if (updateFields.phoneNumber && updateFields.phoneNumber !== user.phoneNumber) {
       if (updateFields.phoneNumber.length !== 11) {
-        return res.status(400).json({ error: "Phone Number must be 11 digits long" });
+        return res.status(400).json({ error: 'Phone Number must be 11 digits long' });
       }
-      
-      // Check if phone number is already taken by another user
-      const existingPhone = await User.findOne({ 
-        phoneNumber: updateFields.phoneNumber, 
-        _id: { $ne: userId } 
+
+      const existingPhone = await User.findOne({
+        phoneNumber: updateFields.phoneNumber,
+        _id: { $ne: userId },
       });
       if (existingPhone) {
-        return res.status(400).json({ error: "Phone number is already taken by another user" });
+        return res.status(400).json({ error: 'Phone number is already taken by another user' });
       }
     }
 
-    // Validate date of birth format if provided
+    // Handle date of birth
     if (updateFields.dateOfBirth) {
       const dobDate = new Date(updateFields.dateOfBirth);
       if (isNaN(dobDate.getTime())) {
-        return res.status(400).json({ error: "Invalid date of birth format" });
+        return res.status(400).json({ error: 'Invalid date of birth format' });
       }
-      // Check if date is not in future
       if (dobDate > new Date()) {
-        return res.status(400).json({ error: "Date of birth cannot be in the future" });
+        return res.status(400).json({ error: 'Date of birth cannot be in the future' });
       }
     }
 
-    // Validate gender enum if provided
+    // Validate gender
     if (updateFields.gender && !['Male', 'Female', 'Other'].includes(updateFields.gender)) {
-      return res.status(400).json({ error: "Gender must be Male, Female, or Other" });
+      return res.status(400).json({ error: 'Gender must be Male, Female, or Other' });
     }
 
-    // Validate blood group enum if provided
+    // Validate blood group
     if (updateFields.bloodGroup) {
       const validBloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
       if (!validBloodGroups.includes(updateFields.bloodGroup)) {
-        return res.status(400).json({ error: "Invalid blood group" });
+        return res.status(400).json({ error: 'Invalid blood group' });
       }
     }
 
-    // Validate height and weight ranges if provided
+    // Validate height and weight
     if (updateFields.height_CM && (updateFields.height_CM < 0 || updateFields.height_CM > 300)) {
-      return res.status(400).json({ error: "Height must be between 0 and 300 cm" });
+      return res.status(400).json({ error: 'Height must be between 0 and 300 cm' });
     }
-
     if (updateFields.weight_KG && (updateFields.weight_KG < 0 || updateFields.weight_KG > 1000)) {
-      return res.status(400).json({ error: "Weight must be between 0 and 1000 kg" });
+      return res.status(400).json({ error: 'Weight must be between 0 and 1000 kg' });
     }
 
-    // Validate emergency contact phone number if provided
-    if (updateFields.emergencyContactPhoneNumber && updateFields.emergencyContactPhoneNumber.length !== 11) {
-      return res.status(400).json({ error: "Emergency contact phone number must be 11 digits long" });
+    // Validate emergency contact phone number
+    if (
+      updateFields.emergencyContactPhoneNumber &&
+      updateFields.emergencyContactPhoneNumber.length !== 11
+    ) {
+      return res.status(400).json({ error: 'Emergency contact phone number must be 11 digits long' });
     }
 
-    // Validate hospital ID if being updated (for doctors)
+    // Validate hospital ID for doctors
     if (updateFields.hospitalId && user.type === 'Doctor') {
-      const mongoose = require('mongoose');
       if (!mongoose.Types.ObjectId.isValid(updateFields.hospitalId)) {
-        return res.status(400).json({ error: "Invalid hospital ID format" });
+        return res.status(400).json({ error: 'Invalid hospital ID format' });
       }
-      
       const hospital = await User.findById(updateFields.hospitalId);
-      if (!hospital || hospital.type !== "Hospital") {
-        return res.status(400).json({ error: "Invalid hospital ID. Must belong to an existing hospital" });
+      if (!hospital || hospital.type !== 'Hospital') {
+        return res.status(400).json({ error: 'Invalid hospital ID. Must belong to an existing hospital' });
       }
     }
 
-    // Define fields that each user type can update
+    // Handle document upload (only for Hospital type)
+    if (req.file && user.type === 'Hospital') {
+      updateFields.document = req.file.path; // Store file path
+    } else if (req.file && user.type !== 'Hospital') {
+      return res.status(400).json({ error: 'Document upload is only allowed for Hospital users' });
+    }
+
+    // Define allowed fields by user type
     const allowedFieldsByType = {
       Admin: [
-        'firstName', 'lastName', 'email', 'phoneNumber', 'gender',
-        'address', 'city', 'state', 'country', 'postalCode', 'preferredLanguage'
+        'firstName',
+        'lastName',
+        'email',
+        'phoneNumber',
+        'gender',
+        'address',
+        'city',
+        'state',
+        'country',
+        'postalCode',
+        'preferredLanguage',
       ],
       Hospital: [
-        'firstName', 'lastName', 'email', 'phoneNumber',
-        'hospitalName', 'address', 'city', 'state', 'country', 'postalCode',
-        'registrationNumber', 'website', 'description', 'specialties',
-        'emergencyServices', 'bedCapacity', 'accreditation', 'open24Hours',
-        'schedule', 'preferredLanguage'
+        'firstName',
+        'lastName',
+        'email',
+        'phoneNumber',
+        'hospitalName',
+        'address',
+        'city',
+        'state',
+        'country',
+        'postalCode',
+        'registrationNumber',
+        'website',
+        'description',
+        'specialties',
+        'emergencyServices',
+        'bedCapacity',
+        'accreditation',
+        'open24Hours',
+        'schedule',
+        'preferredLanguage',
+        'document', // Add document to allowed fields for Hospital
       ],
       Doctor: [
-        'firstName', 'lastName', 'email', 'phoneNumber', 'gender',
-        'address', 'city', 'state', 'country', 'postalCode',
-        'hospitalId', 'specialization', 'bio', 'availability', 'preferredLanguage'
+        'firstName',
+        'lastName',
+        'email',
+        'phoneNumber',
+        'gender',
+        'address',
+        'city',
+        'state',
+        'country',
+        'postalCode',
+        'hospitalId',
+        'specialization',
+        'bio',
+        'availability',
+        'preferredLanguage',
       ],
       Patient: [
-        'firstName', 'lastName', 'email', 'phoneNumber', 'gender',
-        'address', 'city', 'state', 'country', 'postalCode',
-        'dateOfBirth', 'emergencyContactName', 'emergencyContactPhoneNumber',
-        'emergencyContactRelationship', 'bloodGroup', 'height_CM', 'weight_KG',
-        'preferredLanguage', 'insuranceProvider', 'insurancePolicyNumber'
-      ]
+        'firstName',
+        'lastName',
+        'email',
+        'phoneNumber',
+        'gender',
+        'address',
+        'city',
+        'state',
+        'country',
+        'postalCode',
+        'dateOfBirth',
+        'emergencyContactName',
+        'emergencyContactPhoneNumber',
+        'emergencyContactRelationship',
+        'bloodGroup',
+        'height_CM',
+        'weight_KG',
+        'preferredLanguage',
+        'insuranceProvider',
+        'insurancePolicyNumber',
+      ],
     };
 
     const allowedFields = allowedFieldsByType[user.type] || [];
 
-    // Filter updateFields to only include allowed fields for user type
+    // Filter updateFields to only include allowed fields
     const filteredUpdates = {};
-    Object.keys(updateFields).forEach(key => {
+    Object.keys(updateFields).forEach((key) => {
       if (allowedFields.includes(key)) {
         // Only update if the value is not empty/null/undefined
         if (updateFields[key] !== null && updateFields[key] !== undefined && updateFields[key] !== '') {
-          filteredUpdates[key] = updateFields[key];
+          // Parse arrays and booleans if necessary
+          if (['specialties', 'schedule', 'availability'].includes(key)) {
+            try {
+              filteredUpdates[key] = typeof updateFields[key] === 'string' ? JSON.parse(updateFields[key]) : updateFields[key];
+            } catch (e) {
+              return res.status(400).json({ error: `Invalid format for ${key}` });
+            }
+          } else if (['emergencyServices', 'open24Hours'].includes(key)) {
+            filteredUpdates[key] = updateFields[key] === 'true' || updateFields[key] === true;
+          } else if (['bedCapacity'].includes(key)) {
+            filteredUpdates[key] = Number(updateFields[key]);
+          } else {
+            filteredUpdates[key] = updateFields[key];
+          }
         }
       }
     });
 
     // Apply filtered updates to user
-    Object.keys(filteredUpdates).forEach(key => {
+    Object.keys(filteredUpdates).forEach((key) => {
       user[key] = filteredUpdates[key];
     });
 
@@ -196,13 +266,15 @@ const updateUserProfile = async (req, res) => {
     delete userResponse.emailVerificationToken;
 
     return res.status(200).json({
-      message: "Profile updated successfully",
-      user: userResponse
+      message: 'Profile updated successfully',
+      user: userResponse,
     });
-    
   } catch (error) {
-    console.log("Error in updateUserProfile: ", error.message);
-    res.status(500).json({ error: error.message });
+    console.log('Error in updateUserProfile: ', error.message);
+    if (error.message === 'Only audio, image, .csv, and .xlsx files are allowed') {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
@@ -271,4 +343,4 @@ const getPatients = async (req, res) => {
   await getUsersByType(req, res);
 };
 
-module.exports = { updateUserProfile, getSignedinUserProfile, getUserProfile, getAllProfiles, updateFcmToken, getDoctors, getHospitals, getPatients};
+module.exports = { updateUserProfile: [Upload.single('document'), updateUserProfile], getSignedinUserProfile, getUserProfile, getAllProfiles, updateFcmToken, getDoctors, getHospitals, getPatients};
