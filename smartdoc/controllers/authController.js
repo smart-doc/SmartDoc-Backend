@@ -315,7 +315,7 @@ const hospitalRegister = async (req, res) => {
         // Check for required fields first
         if (!hospitalName || !email || !password) {
             return res.status(400).json({ 
-                error: "Missing required fields: hospitalName, phoneNumber, email, and password are required" 
+                error: "Missing required fields: hospitalName, email, and password are required" 
             });
         }
 
@@ -341,12 +341,6 @@ const hospitalRegister = async (req, res) => {
         // if (phoneNumber.length !== 11) {
         //     return res.status(400).json({ error: "Phone Number must be 11 digits long" });
         // }
-
-        // Check for existing phone number
-        const existingPhoneNumber = await User.findOne({ phoneNumber });
-        if (existingPhoneNumber) {
-            return res.status(400).json({ error: "A user already has this phone number. Kindly use another" });
-        }
 
         // Check for existing email
         const existingEmail = await User.findOne({ email });
@@ -480,11 +474,6 @@ const doctorRegister = async (req, res) => {
             return res.status(400).json({ error: "Invalid hospital ID. The provided ID does not belong to a hospital" });
         }
 
-        const existingPhoneNumber = await User.findOne({ phoneNumber });
-        if (existingPhoneNumber) {
-            return res.status(400).json({ error: "A user already has this phone number. Kindly use another" });
-        }
-
         const existingEmail = await User.findOne({ email });
         if (existingEmail) {
             return res.status(400).json({ error: "Email is already taken" });
@@ -583,11 +572,6 @@ const patientRegister = async (req, res) => {
         return res.status(400).json({
             message: 'Password must contain at least one uppercase letter and one special character.',
         });
-        }
-
-        const existingPhoneNumber = await User.findOne({ phoneNumber });
-        if (existingPhoneNumber) {
-        return res.status(400).json({ error: "A user already has this phone number. Kindly use another" });
         }
 
         const existingEmail = await User.findOne({ email });
