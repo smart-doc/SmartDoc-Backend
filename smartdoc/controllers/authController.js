@@ -312,20 +312,17 @@ const hospitalRegister = async (req, res) => {
             registrationNumber, website, description, specialties, emergencyServices, bedCapacity, accreditation, open24Hours, schedule
         } = req.body;
 
-        // Check for required fields first
         if (!hospitalName || !email || !password) {
             return res.status(400).json({ 
                 error: "Missing required fields: hospitalName, email, and password are required" 
             });
         }
 
-        // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             return res.status(400).json({ error: "Invalid email format" });
         }
 
-        // Password validation
         if (password.length < 8) {
             return res.status(400).json({ error: "Password must be at least 8 characters long" });
         }
@@ -342,23 +339,19 @@ const hospitalRegister = async (req, res) => {
         //     return res.status(400).json({ error: "Phone Number must be 11 digits long" });
         // }
 
-        // Check for existing email
         const existingEmail = await User.findOne({ email });
         if (existingEmail) {
             return res.status(400).json({ error: "Email is already taken" });
         }
 
-        // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Get user role
         const userRole = await Role.findOne({ name: 'Hospital' });
         if (!userRole) {
             return res.status(500).json({ error: "Hospital role not found in database" });
         }
 
-        // Create new user
         const newUser = new User({
             hospitalName, 
             phoneNumber, 
@@ -388,10 +381,8 @@ const hospitalRegister = async (req, res) => {
 
         await newUser.save();
 
-        // Populate user with role
         const populatedUser = await User.findById(newUser._id).populate('role');
 
-        // Generate and send OTP
         const otp = generateOTP();
         const hashedOTP = await bcrypt.hash(otp, 10);
         
