@@ -5,6 +5,10 @@ const {FileUtility} = require("../utils/fileUtility.js");
 const { parse } = require('csv-parse/sync');
 const XLSX = require('xlsx');
 const Role = require("../models/Role.js");
+const fs = require('fs').promises;
+const crypto = require('crypto');
+const mongoose = require('mongoose');
+const { sendEmail } = require('../utils/emailUtility.js');
 
 
 const getSignedinUserProfile = async (req, res) => {
@@ -18,17 +22,31 @@ const getSignedinUserProfile = async (req, res) => {
 }
 
 const getUserProfile = async (req, res) => {
-  const { email } = req.params;
-    try{
-        const user = await User.findOne({ email }).select("-password");
-        if (!user) 
-          return res.status(400).json({message: "User not found"});
+  try {
+    const { email } = req.query;
 
-        res.status(200).json(user);
-    } catch (error) {
-        console.log("error in getUserProfile controller:", error.message)
-        res.status(500).json({error: error.message});
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
+      '_id email type emailVerified'
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.status(200).json({
+      _id: user._id,
+      email: user.email,
+      type: user.type,
+      emailVerified: user.emailVerified,
+    });
+  } catch (error) {
+    console.error('Error in getUserProfile:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 }
 
 const updateUserProfile = async (req, res) => {
