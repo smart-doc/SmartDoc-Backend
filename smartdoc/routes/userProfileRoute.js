@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get("/profile/get/allProfiles"/*, authorize(['Admin'])*/, protectRoute, getAllProfiles);
 router.get("/profile/get/SignedinUserProfile", protectRoute, /*authorize(['Admin', `Patient`, `Doctor`, 'Hospital']),*/  getSignedinUserProfile);
-router.get("/profile/get/:email", protectRoute, /*authorize(['Admin']),*/ getUserProfile);
+router.get("/profile/get/:email", /*authorize(['Admin']),*/ getUserProfile);
 router.post("/profile/update", protectRoute, /*authorize(['Admin', `Patient`, `Doctor`, 'Hospital']),*/ updateUserProfile);
 router.get('/doctors', protectRoute, getDoctors);
 router.get('/hospitals', protectRoute, getHospitals);
