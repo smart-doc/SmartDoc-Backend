@@ -23,7 +23,7 @@ const getSignedinUserProfile = async (req, res) => {
 
 const getUserProfile = async (req, res) => {
   try {
-    const { email } = req.query;
+    const { email } = req.params;
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -44,7 +44,7 @@ const getUserProfile = async (req, res) => {
       emailVerified: user.emailVerified,
     });
   } catch (error) {
-    console.error('Error in getUserProfile:', error.message);
+    console.error('Error in getUserByEmail:', error.message);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
