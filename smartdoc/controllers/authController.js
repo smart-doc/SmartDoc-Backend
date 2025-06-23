@@ -585,10 +585,8 @@ const signIn = async (req, res) => {
 
     const emailVerified = user.emailVerified
 
-    if (emailVerified === false) {
-      return res.status(400).json({
-        error: `You have not verified your email. <a href="https://smartdoc-p1ca.onrender.com/api/v1/auth/resend-otp?email=${encodeURIComponent(user.email)}">Click here to resend verification OTP</a>`,
-      });
+    if (emailVerified === false){
+      return res.status(400).json({error: "You have not verified your email. Kindly click here to verify your email"})
     }
 
     generateTokenAndSetCookie (user._id, res);
