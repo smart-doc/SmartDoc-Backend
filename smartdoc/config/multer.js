@@ -1,8 +1,9 @@
 const multer = require('multer');
 const path = require('path');
+const { FileUtility } = require('../utils/fileUtility');
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: async (req, file, cb) => {
     let uploadPath;
     if (file.mimetype.startsWith('audio/')) {
       uploadPath = 'uploads/audio';
@@ -10,31 +11,36 @@ const storage = multer.diskStorage({
       uploadPath = 'uploads/images';
     } else if (
       file.mimetype === 'text/csv' ||
+      file.mimetype === 'application/csv' ||
       file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ) {
       uploadPath = 'uploads/documents';
     } else {
       return cb(new Error('Unsupported file type'));
     }
-    cb(null, uploadPath);
+    try {
+      await FileUtility.ensureDirectoryExists(uploadPath);
+      cb(null, uploadPath);
+    } catch (error) {
+      cb(error);
+    }
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
+    cb(null, FileUtility.generateUniqueFilename(file.originalname));
   },
 });
 
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    // Accept audio, image, csv, and xlsx files
     const allowedTypes = [
       'audio/',
       'image/',
       'text/csv',
+      'application/csv',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ];
     if (allowedTypes.some((type) => file.mimetype.startsWith(type) || file.mimetype === type)) {

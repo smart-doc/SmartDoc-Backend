@@ -5,10 +5,13 @@ const crypto = require("crypto")
 require("dotenv").config();
 const path = require('path');
 const Role = require("../models/Role.js")
-const{ User} = require ("../models/User.js")
+const{ User, UserStatus} = require ("../models/User.js")
 const jwt = require("jsonwebtoken")
 const OTPVerification = require("../models/OTPVerification.js")
 const { sendEmail } = require('../controllers/emailController.js');
+const {FileUtility} = require('../utils/fileUtility.js');
+const { parse } = require('csv-parse/sync');
+const XLSX = require('xlsx');
 
 
 const generateOTP = (length = 6) => {
@@ -251,7 +254,7 @@ const adminRegister = async (req, res) => {
     const newUser = new User({
       firstName,
       lastName,
-      email,
+      email: email.toLowerCase().trim(),
       type: "Admin",
       password: hashedPassword,
       emailVerified: false,
@@ -285,7 +288,7 @@ const adminRegister = async (req, res) => {
     await sendEmail(email, 'SmartDoc Verification OTP', emailHtml);
 
     res.status(201).json({
-      message: 'User created. Verification OTP sent to your email.',
+      message: 'Admin created. Verification OTP sent to your email.',
       token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
       user: {
         _id: populatedUser._id,
@@ -305,133 +308,11 @@ const adminRegister = async (req, res) => {
   }
 };
 
-const hospitalRegister = async (req, res) => {
-    try {
-        const { 
-            hospitalName, phoneNumber, email, password, address, city, state, country, postalCode, latitude, longitude, 
-            registrationNumber, website, description, specialties, emergencyServices, bedCapacity, accreditation, open24Hours, schedule
-        } = req.body;
-
-        if (!hospitalName || !email || !password) {
-            return res.status(400).json({ 
-                error: "Missing required fields: hospitalName, email, and password are required" 
-            });
-        }
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({ error: "Invalid email format" });
-        }
-
-        if (password.length < 8) {
-            return res.status(400).json({ error: "Password must be at least 8 characters long" });
-        }
-
-        const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
-        if (!passwordRegex.test(password)) {
-            return res.status(400).json({
-                message: 'Password must contain at least one uppercase letter and one special character.',
-            });
-        }
-
-        // Phone number validation
-        // if (phoneNumber.length !== 11) {
-        //     return res.status(400).json({ error: "Phone Number must be 11 digits long" });
-        // }
-
-        const existingEmail = await User.findOne({ email });
-        if (existingEmail) {
-            return res.status(400).json({ error: "Email is already taken" });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const userRole = await Role.findOne({ name: 'Hospital' });
-        if (!userRole) {
-            return res.status(500).json({ error: "Hospital role not found in database" });
-        }
-
-        const newUser = new User({
-            hospitalName, 
-            phoneNumber, 
-            email, 
-            address, 
-            city, 
-            state, 
-            country, 
-            postalCode, 
-            latitude, 
-            longitude,   
-            registrationNumber, 
-            website, 
-            description, 
-            specialties, 
-            emergencyServices, 
-            bedCapacity, 
-            accreditation, 
-            open24Hours,
-            schedule,
-            status: "active",
-            type: "Hospital",
-            password: hashedPassword,
-            isEmailVerified: false,
-            role: userRole._id
-        });
-
-        await newUser.save();
-
-        const populatedUser = await User.findById(newUser._id).populate('role');
-
-        const otp = generateOTP();
-        const hashedOTP = await bcrypt.hash(otp, 10);
-        
-        await OTPVerification.create({
-            userId: newUser._id,
-            otp: hashedOTP,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
-        });
-
-        const emailHtml = `
-            <p><strong>Hi there</strong>,<br>
-            Thank you for signing up on SmartDoc.<br>
-            Your verification OTP is: <strong>${otp}</strong><br>
-            This OTP will expire in 30 minutes.<br>
-            If you did not sign up for a SmartDoc account, you can safely ignore this email.<br><br><br>
-            Best,<br>
-            The SmartDoc Team</p>
-        `;
-
-        await sendEmail(email, 'SMARTDOC Verification OTP', emailHtml);
-
-        res.status(201).json({
-            message: 'User created. Verification OTP sent to your email.',
-            token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
-            user: {
-                _id: populatedUser._id,
-                hospitalName: populatedUser.hospitalName,
-                email: populatedUser.email,
-                type: populatedUser.type,
-                phoneNumber: populatedUser.phoneNumber,
-                role: {
-                    _id: populatedUser.role._id,
-                    name: populatedUser.role.name
-                }
-            },
-        });
-
-    } catch (error) {
-        console.error("Error in hospitalSignUp controller:", error.message);
-        res.status(500).json({ error: "Internal Server Error" });
-    }
-};
-
 const doctorRegister = async (req, res) => {
     try {
         const { firstName, lastName, email, password, hospitalId, phoneNumber, specialization, bio } = req.body;
 
-        if (!firstName || !lastName || !email || !password || !hospitalId || !phoneNumber || !specialization) {
+        if (!firstName, !lastName, !email, !password, !hospitalId, !phoneNumber, !specialization) {
             return res.status(400).json({ error: "All required fields must be provided" });
         }
 
@@ -482,7 +363,7 @@ const doctorRegister = async (req, res) => {
         const newUser = new User({
             firstName,
             lastName,
-            email,
+            email: email.toLowerCase().trim(),
             hospitalId,
             phoneNumber,
             specialization,
@@ -536,6 +417,48 @@ const doctorRegister = async (req, res) => {
                 }
             },
         });
+
+        try {
+            let doctors = [];
+            if (req.file.mimetype === 'text/csv' || req.file.mimetype === 'application/csv') {
+              const fileContent = await fs.readFile(req.file.path);
+              doctors = parse(fileContent, {
+                columns: true,
+                skip_empty_lines: true,
+                trim: true,
+              });
+            } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+              const workbook = XLSX.readFile(req.file.path);
+              const sheetName = workbook.SheetNames[0];
+              doctors = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+            }
+        
+            console.log('Parsed doctors:', doctors);
+        
+            // Example: Create Doctor users
+            for (const doctor of doctors) {
+              const { firstName, lastName, email, specialization } = doctor;
+              if (!email) continue;
+        
+              const existingDoctor = await User.findOne({ email });
+              if (!existingDoctor) {
+                const User = new User({
+                  firstName,
+                  lastName,
+                  email: email.toLowerCase(),
+                  type: 'Doctor',
+                  status: UserStatus.PENDING,
+                  hospitalId: User._id,
+                  specialization,
+                  password: await bcrypt.hash('defaultPassword123!', 10), // Temporary password
+                  role: await Role.findOne({ name: 'Doctor' }),
+                });
+                await User.save();
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing document:', error.message);
+          }
     } catch (error) {
         console.error("Error in doctorRegister controller:", error.message);
         res.status(500).json({ error: "Internal Server Error" });
@@ -578,7 +501,8 @@ const patientRegister = async (req, res) => {
         const newUser = new User({
         firstName,
         lastName,
-        email,
+        phoneNumber,
+        email: email.toLowerCase().trim(),
         dateOfBirth,
         gender, 
         address,
@@ -629,7 +553,7 @@ const patientRegister = async (req, res) => {
         await sendEmail(email, 'SmartDoc Verification OTP', emailHtml);
 
         res.status(201).json({
-        message: 'User created. Verification OTP sent to your email.',
+        message: 'Doctor created. Verification OTP sent to your email.',
         token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
         user: {
             _id: populatedUser._id,
@@ -691,6 +615,214 @@ const signIn = async (req, res) => {
   } catch(error) {
     console.log("error in signin controller", error.message);
     res.status(500).json({ error: "internal Server Error" });
+  }
+};
+
+const hospitalRegister = async (req, res) => {
+  try {
+    const {hospitalName, phoneNumber, email, password, address, city, state, country, postalCode, registrationNumber, 
+      website, description, specialties, emergencyServices, bedCapacity, accreditation} = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        error: 'Missing required fields: email, and password are required',
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        error: 'Password must contain at least one uppercase letter and one special character.',
+      });
+    }
+
+    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email is already taken' });
+    }
+
+    if (phoneNumber && phoneNumber.length > 20) {
+      return res.status(400).json({ error: 'Phone number must be 20 characters or less' });
+    }
+
+    if (registrationNumber) {
+      const existingRegNumber = await User.findOne({ registrationNumber });
+      if (existingRegNumber) {
+        return res.status(400).json({ error: 'Registration number is already taken' });
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const userRole = await Role.findOne({ name: 'Hospital' });
+    if (!userRole) {
+      return res.status(500).json({ error: 'Hospital role not found in database' });
+    }
+
+    const newUser = new User({
+      hospitalName,
+      phoneNumber,
+      email: email.toLowerCase().trim(),
+      address,
+      city,
+      state,
+      country,
+      postalCode,
+      registrationNumber,
+      website,
+      description,
+      specialties: specialties ? (Array.isArray(specialties) ? specialties : [specialties]) : [],
+      emergencyServices: emergencyServices === 'true' || emergencyServices === true,
+      bedCapacity: bedCapacity ? parseInt(bedCapacity, 10) : undefined,
+      accreditation,
+      status: UserStatus.ACTIVE,
+      type: 'Hospital',
+      password: hashedPassword,
+      emailVerified: false,
+      role: userRole._id,
+      document: req.file ? req.file.path : undefined,
+    });
+
+    await newUser.save();
+
+    const populatedUser = await User.findById(newUser._id).populate('role');
+
+    const otp = generateOTP();
+    const hashedOTP = await bcrypt.hash(otp, 10);
+
+    await OTPVerification.create({
+      userId: newUser._id,
+      otp: hashedOTP,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
+    });
+
+    const emailHtml = `
+      <p><strong>Hi there</strong>,<br>
+      Thank you for signing up on SmartDoc.<br>
+      Your verification OTP is: <strong>${otp}</strong><br>
+      This OTP will expire in 30 minutes.<br>
+      If you did not sign up for a SmartDoc account, you can safely ignore this email.<br><br><br>
+      Best,<br>
+      The SmartDoc Team</p>
+    `;
+    console.log(otp)
+
+    await sendEmail(email, 'SMARTDOC Verification OTP', emailHtml);
+
+    res.status(201).json({
+      message: 'Hospital created. Verification OTP sent to your email.',
+      token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
+      user: {
+        _id: populatedUser._id,
+        hospitalName: populatedUser.hospitalName,
+        email: populatedUser.email,
+        type: populatedUser.type,
+        phoneNumber: populatedUser.phoneNumber,
+        role: {
+          _id: populatedUser.role._id,
+          name: populatedUser.role.name,
+        },
+      },
+    });
+
+    // // Handle document upload for hospitals
+    //   if (req.file && user.type === 'Hospital') {
+    // // Delete previous document if it exists
+    // if (user.document) {
+    //   await FileUtility.deleteFile(user.document);
+    // }
+    // updateFields.document = req.file.path;
+
+    // // Parse the document
+    // try {
+    //   let doctors = [];
+    //   if (req.file.mimetype === 'text/csv' || req.file.mimetype === 'application/csv') {
+    //     const fileContent = await fs.readFile(req.file.path);
+    //     doctors = parse(fileContent, {
+    //       columns: true,
+    //       skip_empty_lines: true,
+    //       trim: true,
+    //     });
+    //   } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+    //     const workbook = XLSX.readFile(req.file.path);
+    //     const sheetName = workbook.SheetNames[0];
+    //     doctors = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    //   }
+
+    //   // Normalize column names (remove spaces)
+    //   doctors = doctors.map((doctor) => {
+    //     const normalized = {};
+    //     for (const key in doctor) {
+    //       const normalizedKey = key.trim().toLowerCase();
+    //       normalized[normalizedKey] = doctor[key];
+    //     }
+    //     return normalized;
+    //   });
+
+    //   console.log('Parsed doctors:', doctors);
+
+    //   // Create Doctor users
+    //   const createdDoctors = [];
+    //   for (const doctor of doctors) {
+    //     const { firstname, lastname, email, specialization } = doctor;
+    //     if (!email) {
+    //       console.log('Skipping doctor without email:', doctor);
+    //       continue;
+    //     }
+
+    //     const existingDoctor = await User.findOne({ email: email.toLowerCase() });
+    //     if (existingDoctor) {
+    //       console.log('Doctor already exists:', email);
+    //       continue;
+    //     }
+
+    //     const doctorRole = await Role.findOne({ name: 'Doctor' });
+    //     if (!doctorRole) {
+    //       throw new Error('Doctor role not found in database');
+    //     }
+
+    //     const doctorUser = new User({
+    //       firstName: firstname,
+    //       lastName: lastname,
+    //       email: email.toLowerCase(),
+    //       type: 'Doctor',
+    //       status: UserStatus.PENDING,
+    //       hospitalId: user._id,
+    //       specialization: specialization || '',
+    //       password: await bcrypt.hash('defaultPassword123!', 10),
+    //       role: doctorRole._id,
+    //     });
+
+    //     await doctorUser.save();
+    //     createdDoctors.push(doctorUser.email);
+    //     console.log('Created doctor:', doctorUser.email);
+    //   }
+
+    //   console.log('Created doctors:', createdDoctors);
+    //   } catch (error) {
+    //     console.error('Error parsing document:', error.message);
+    //     // Optionally, fail the request if doctor creation is critical
+    //     return res.status(400).json({ error: `Failed to parse document: ${error.message}` });
+    //   }
+    // } else if (req.file && user.type !== 'Hospital') {
+    //   await FileUtility.deleteFile(req.file.path); // Cleanup
+    //   return res.status(400).json({ error: 'Document upload is only allowed for Hospital users' });
+    // } 
+  } catch (error) {
+    console.error('Error in hospitalRegister:', error.message);
+    if (req.file) await FileUtility.deleteFile(req.file.path); // Cleanup on error
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 

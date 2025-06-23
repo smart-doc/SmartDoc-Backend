@@ -116,14 +116,6 @@ const userSchema = new mongoose.Schema({
   bio: {
     type: String
   },
-  availability: [{
-    day: {
-      type: String,
-      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    },
-    startTime: String,
-    endTime: String
-  }],
   
   // Hospital-specific fields
   hospitalName: {
@@ -168,18 +160,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     maxlength: 255
   },
-  open24Hours: {
-    type: Boolean,
-    default: false
-  },
-  schedule: [{
-    day: {
-      type: String,
-      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    },
-    openTime: String,
-    closeTime: String
-  }],
   document: {
     type: String, // Store file path or URL
     maxlength: 255
@@ -263,13 +243,6 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Add indexes for better performance
-// userSchema.index({ email: 1 });
-// userSchema.index({ type: 1 });
-// userSchema.index({ phoneNumber: 1 });
-// userSchema.index({ registrationNumber: 1 });
-// userSchema.index({ hospitalId: 1 });
-// userSchema.index({ "location": "2dsphere" });
 
 const User = mongoose.model("User", userSchema);
 module.exports = { User, UserRole, UserStatus, Gender, BloodGroup };

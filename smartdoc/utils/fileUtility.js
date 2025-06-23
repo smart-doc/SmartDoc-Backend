@@ -12,9 +12,12 @@ class FileUtility {
 
   static async deleteFile(filePath) {
     try {
+      await fs.access(filePath); // Check if file exists
       await fs.unlink(filePath);
+      return true;
     } catch (error) {
-      console.error('Error deleting file:', error);
+      if (error.code === 'ENOENT') return false; // File doesn't exist
+      throw new Error(`Failed to delete file: ${error.message}`);
     }
   }
 

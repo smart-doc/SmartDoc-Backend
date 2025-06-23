@@ -1,6 +1,10 @@
 const {User, UserStatus, Gender, BloodGroup} = require("../models/User.js");
 const bcrypt = require("bcrypt");
 const Upload = require("../config/multer.js")
+const {FileUtility} = require("../utils/fileUtility.js");
+const { parse } = require('csv-parse/sync');
+const XLSX = require('xlsx');
+const Role = require("../models/Role.js");
 
 
 const getSignedinUserProfile = async (req, res) => {
@@ -27,154 +31,15 @@ const getUserProfile = async (req, res) => {
     }
 }
 
-// const updateUserProfile = async (req, res) => {
-//   const userId = req.user._id; // From JWT middleware
-//   const { currentPassword, newPassword, ...updateFields } = req.body;
-
-//   try {
-//     let user = await User.findById(userId);
-//     if (!user) return res.status(404).json({ message: 'User not found' });
-
-//     if (currentPassword && newPassword) {
-//       const isMatch = await bcrypt.compare(currentPassword, user.password);
-//       if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
-
-//       if (newPassword.length < 8) {
-//         return res.status(400).json({ error: 'Password must be at least 8 characters long' });
-//       }
-
-//       const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
-//       if (!passwordRegex.test(newPassword)) {
-//         return res.status(400).json({
-//           error: 'Password must contain at least one uppercase letter and one special character.',
-//         });
-//       }
-
-//       const salt = await bcrypt.genSalt(10);
-//       user.password = await bcrypt.hash(newPassword, salt);
-//     } else if ((currentPassword && !newPassword) || (!currentPassword && newPassword)) {
-//       return res.status(400).json({ error: 'Please provide both current password and new password' });
-//     }
-
-//     // Handle email update
-//     if (updateFields.email && updateFields.email !== user.email) {
-//       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-//       if (!emailRegex.test(updateFields.email)) {
-//         return res.status(400).json({ error: 'Invalid email format' });
-//       }
-
-//       const existingEmail = await User.findOne({
-//         email: updateFields.email,
-//         _id: { $ne: userId },
-//       });
-//       if (existingEmail) {
-//         return res.status(400).json({ error: 'Email is already taken by another user' });
-//       }
-//     }
-
-//     // Handle phone number update
-//     if (updateFields.phoneNumber && updateFields.phoneNumber !== user.phoneNumber) {
-//       if (updateFields.phoneNumber.length !== 11) {
-//         return res.status(400).json({ error: 'Phone Number must be 11 digits long' });
-//       }
-
-//       const existingPhone = await User.findOne({
-//         phoneNumber: updateFields.phoneNumber,
-//         _id: { $ne: userId },
-//       });
-//       if (existingPhone) {
-//         return res.status(400).json({ error: 'Phone number is already taken by another user' });
-//       }
-//     }
-
-//     // Handle date of birth
-//     if (updateFields.dateOfBirth) {
-//       const dobDate = new Date(updateFields.dateOfBirth);
-//       if (isNaN(dobDate.getTime())) {
-//         return res.status(400).json({ error: 'Invalid date of birth format' });
-//       }
-//       if (dobDate > new Date()) {
-//         return res.status(400).json({ error: 'Date of birth cannot be in the future' });
-//       }
-//     }
-
-//     // Validate gender
-//     if (updateFields.gender && !['Male', 'Female', 'Other'].includes(updateFields.gender)) {
-//       return res.status(400).json({ error: 'Gender must be Male, Female, or Other' });
-//     }
-
-//     // Validate blood group
-//     if (updateFields.bloodGroup) {
-//       const validBloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-//       if (!validBloodGroups.includes(updateFields.bloodGroup)) {
-//         return res.status(400).json({ error: 'Invalid blood group' });
-//       }
-//     }
-
-//     // Validate height and weight
-//     if (updateFields.height_CM && (updateFields.height_CM < 0 || updateFields.height_CM > 300)) {
-//       return res.status(400).json({ error: 'Height must be between 0 and 300 cm' });
-//     }
-//     if (updateFields.weight_KG && (updateFields.weight_KG < 0 || updateFields.weight_KG > 1000)) {
-//       return res.status(400).json({ error: 'Weight must be between 0 and 1000 kg' });
-//     }
-
-//     // Validate emergency contact phone number
-//     if (
-//       updateFields.emergencyContactPhoneNumber &&
-//       updateFields.emergencyContactPhoneNumber.length !== 11
-//     ) {
-//       return res.status(400).json({ error: 'Emergency contact phone number must be 11 digits long' });
-//     }
-
-//     // Validate hospital ID for doctors
-//     if (updateFields.hospitalId && user.type === 'Doctor') {
-//       if (!mongoose.Types.ObjectId.isValid(updateFields.hospitalId)) {
-//         return res.status(400).json({ error: 'Invalid hospital ID format' });
-//       }
-//       const hospital = await User.findById(updateFields.hospitalId);
-//       if (!hospital || hospital.type !== 'Hospital') {
-//         return res.status(400).json({ error: 'Invalid hospital ID. Must belong to an existing hospital' });
-//       }
-//     }
-
-//     // Handle document upload (only for Hospital type)
-//     if (req.file && user.type === 'Hospital') {
-//       updateFields.document = req.file.path; // Store file path
-//     } else if (req.file && user.type !== 'Hospital') {
-//       return res.status(400).json({ error: 'Document upload is only allowed for Hospital users' });
-//     }
-
-//     // Save the updated user
-//     user = await user.save();
-
-//     // Remove sensitive fields from response
-//     const userResponse = user.toObject();
-//     delete userResponse.password;
-//     delete userResponse.passwordResetToken;
-//     delete userResponse.emailVerificationToken;
-
-//     return res.status(200).json({
-//       message: 'Profile updated successfully',
-//       user: userResponse,
-//     });
-//   } catch (error) {
-//     console.log('Error in updateUserProfile: ', error.message);
-//     if (error.message === 'Only audio, image, .csv, and .xlsx files are allowed') {
-//       return res.status(400).json({ error: error.message });
-//     }
-//     res.status(500).json({ error: 'Internal Server Error' });
-//   }
-// };
-
 const updateUserProfile = async (req, res) => {
-  const userId = req.user._id; 
+  const userId = req.user._id;
   const { currentPassword, newPassword, ...updateFields } = req.body;
 
   try {
     let user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    // Handle password update
     if (currentPassword && newPassword) {
       const isMatch = await bcrypt.compare(currentPassword, user.password);
       if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
@@ -196,12 +61,29 @@ const updateUserProfile = async (req, res) => {
       return res.status(400).json({ error: 'Please provide both current password and new password' });
     }
 
+    // Parse stringified arrays from FormData
+    if (updateFields.specialties) {
+      try {
+        updateFields.specialties = typeof updateFields.specialties === 'string'
+          ? JSON.parse(updateFields.specialties)
+          : updateFields.specialties;
+        if (!Array.isArray(updateFields.specialties)) {
+          updateFields.specialties = [updateFields.specialties];
+        }
+        if (updateFields.specialties.some((spec) => typeof spec !== 'string')) {
+          return res.status(400).json({ error: 'Specialties must be an array of strings' });
+        }
+      } catch (error) {
+        return res.status(400).json({ error: 'Invalid specialties format' });
+      }
+    }
+
+    // Validate fields
     if (updateFields.email && updateFields.email !== user.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(updateFields.email)) {
         return res.status(400).json({ error: 'Invalid email format' });
       }
-
       const existingEmail = await User.findOne({
         email: updateFields.email.toLowerCase(),
         _id: { $ne: userId },
@@ -216,7 +98,6 @@ const updateUserProfile = async (req, res) => {
       if (updateFields.phoneNumber.length > 20) {
         return res.status(400).json({ error: 'Phone number must be 20 characters or less' });
       }
-
       const existingPhone = await User.findOne({
         phoneNumber: updateFields.phoneNumber,
         _id: { $ne: userId },
@@ -317,45 +198,6 @@ const updateUserProfile = async (req, res) => {
       return res.status(400).json({ error: 'Bed capacity must be non-negative' });
     }
 
-    if (updateFields.specialties) {
-      if (!Array.isArray(updateFields.specialties)) {
-        updateFields.specialties = [updateFields.specialties];
-      }
-      if (updateFields.specialties.some((spec) => typeof spec !== 'string')) {
-        return res.status(400).json({ error: 'Specialties must be an array of strings' });
-      }
-    }
-
-    if (updateFields.schedule) {
-      if (!Array.isArray(updateFields.schedule)) {
-        return res.status(400).json({ error: 'Schedule must be an array' });
-      }
-      const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      for (const entry of updateFields.schedule) {
-        if (!entry.day || !validDays.includes(entry.day.toLowerCase())) {
-          return res.status(400).json({ error: `Schedule day must be one of: ${validDays.join(', ')}` });
-        }
-        if (!entry.openTime || !entry.closeTime) {
-          return res.status(400).json({ error: 'Schedule entry must include openTime and closeTime' });
-        }
-      }
-    }
-
-    if (updateFields.availability) {
-      if (!Array.isArray(updateFields.availability)) {
-        return res.status(400).json({ error: 'Availability must be an array' });
-      }
-      const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      for (const entry of updateFields.availability) {
-        if (!entry.day || !validDays.includes(entry.day.toLowerCase())) {
-          return res.status(400).json({ error: `Availability day must be one of: ${validDays.join(', ')}` });
-        }
-        if (!entry.startTime || !entry.endTime) {
-          return res.status(400).json({ error: 'Availability entry must include startTime and endTime' });
-        }
-      }
-    }
-
     if (updateFields.specialization && updateFields.specialization.length > 100) {
       return res.status(400).json({ error: 'Specialization must be 100 characters or less' });
     }
@@ -376,14 +218,89 @@ const updateUserProfile = async (req, res) => {
       return res.status(400).json({ error: 'Insurance policy number must be 100 characters or less' });
     }
 
-    if (req.file && user.type === 'Hospital') {
-      updateFields.document = req.file.path; // Store file path
-    } else if (req.file && user.type !== 'Hospital') {
-      return res.status(400).json({ error: 'Document upload is only allowed for Hospital users' });
-    }
+      // Handle document upload for hospitals
+        if (req.file && user.type === 'Hospital') {
+      // Delete previous document if it exists
+      if (user.document) {
+        await FileUtility.deleteFile(user.document);
+      }
+      updateFields.document = req.file.path;
 
-    // Log for debugging
-    console.log('Received updateFields:', updateFields);
+      // Parse the document
+      try {
+        let doctors = [];
+        if (req.file.mimetype === 'text/csv' || req.file.mimetype === 'application/csv') {
+          const fileContent = await fs.readFile(req.file.path);
+          doctors = parse(fileContent, {
+            columns: true,
+            skip_empty_lines: true,
+            trim: true,
+          });
+        } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+          const workbook = XLSX.readFile(req.file.path);
+          const sheetName = workbook.SheetNames[0];
+          doctors = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        }
+
+        // Normalize column names (remove spaces)
+        doctors = doctors.map((doctor) => {
+          const normalized = {};
+          for (const key in doctor) {
+            const normalizedKey = key.trim().toLowerCase();
+            normalized[normalizedKey] = doctor[key];
+          }
+          return normalized;
+        });
+
+        console.log('Parsed doctors:', doctors);
+
+        // Create Doctor users
+        const createdDoctors = [];
+        for (const doctor of doctors) {
+          const { firstname, lastname, email, specialization } = doctor;
+          if (!email) {
+            console.log('Skipping doctor without email:', doctor);
+            continue;
+          }
+
+          const existingDoctor = await User.findOne({ email: email.toLowerCase() });
+          if (existingDoctor) {
+            console.log('Doctor already exists:', email);
+            continue;
+          }
+
+          const doctorRole = await Role.findOne({ name: 'Doctor' });
+          if (!doctorRole) {
+            throw new Error('Doctor role not found in database');
+          }
+
+          const doctorUser = new User({
+            firstName: firstname,
+            lastName: lastname,
+            email: email.toLowerCase(),
+            type: 'Doctor',
+            status: UserStatus.PENDING,
+            hospitalId: user._id,
+            specialization: specialization || '',
+            password: await bcrypt.hash('defaultPassword123!', 10),
+            role: doctorRole._id,
+          });
+
+          await doctorUser.save();
+          createdDoctors.push(doctorUser.email);
+          console.log('Created doctor:', doctorUser.email);
+        }
+
+        console.log('Created doctors:', createdDoctors);
+      } catch (error) {
+        console.error('Error parsing document:', error.message);
+        // Optionally, fail the request if doctor creation is critical
+        return res.status(400).json({ error: `Failed to parse document: ${error.message}` });
+      }
+    } else if (req.file && user.type !== 'Hospital') {
+      await FileUtility.deleteFile(req.file.path); // Cleanup
+      return res.status(400).json({ error: 'Document upload is only allowed for Hospital users' });
+    } 
 
     // Update the user document
     const updatedUser = await User.findByIdAndUpdate(
@@ -393,10 +310,9 @@ const updateUserProfile = async (req, res) => {
     ).select('-password -passwordResetToken -emailVerificationToken');
 
     if (!updatedUser) {
+      if (req.file) await FileUtility.deleteFile(req.file.path); // Cleanup
       return res.status(400).json({ message: 'User not found' });
     }
-
-    console.log('Updated user:', updatedUser);
 
     return res.status(200).json({
       message: 'Profile updated successfully',
@@ -404,6 +320,7 @@ const updateUserProfile = async (req, res) => {
     });
   } catch (error) {
     console.log('Error in updateUserProfile:', error.message);
+    if (req.file) await FileUtility.deleteFile(req.file.path); // Cleanup
     if (error.message === 'Only audio, image, .csv, and .xlsx files are allowed') {
       return res.status(400).json({ error: error.message });
     }
