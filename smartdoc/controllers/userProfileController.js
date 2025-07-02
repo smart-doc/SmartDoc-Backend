@@ -8,7 +8,7 @@ const Role = require("../models/Role.js");
 const fs = require('fs').promises;
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const { sendEmail } = require('../utils/emailUtility.js');
+const { sendEmail } = require('../controllers/emailController.js');
 const { generate } = require('generate-password');
 
 const getSignedinUserProfile = async (req, res) => {
@@ -337,12 +337,8 @@ const updateUserProfile = async (req, res) => {
             Best,<br>
             The SmartDoc Team</p>
           `;
-
-          await sendEmail(
-            email.toLowerCase(),
-            `Welcome to SmartDoc - Your Doctor Account Details`,
-            emailHtml
-          );
+          
+          await sendEmail(email, `Welcome to SmartDoc - Your Doctor Account Details`, emailHtml);
           console.log('Created doctor:', doctorUser.email);
         }
 
