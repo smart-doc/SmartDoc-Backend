@@ -83,8 +83,10 @@ const updateUserProfile = async (req, res) => {
     if (updateFields.specialties) {
       try {
         updateFields.specialties = typeof updateFields.specialties === 'string'
-          ? JSON.parse(updateFields.specialties)
-          : updateFields.specialties;
+          ? [updateFields.specialties] // Convert single string to array
+          : Array.isArray(updateFields.specialties)
+          ? updateFields.specialties
+          : JSON.parse(updateFields.specialties);
         if (!Array.isArray(updateFields.specialties)) {
           updateFields.specialties = [updateFields.specialties];
         }
@@ -92,7 +94,18 @@ const updateUserProfile = async (req, res) => {
           return res.status(400).json({ error: 'Specialties must be an array of strings' });
         }
       } catch (error) {
+        console.error('Error parsing specialties:', error);
         return res.status(400).json({ error: 'Invalid specialties format' });
+      }
+    }
+
+    if (updateFields.hospitalId && user.type === 'Doctor') {
+      if (!mongoose.isValidObjectId(updateFields.hospitalId)) {
+        return res.status(400).json({ error: 'Invalid hospital ID format' });
+      }
+      const hospital = await User.findById(updateFields.hospitalId);
+      if (!hospital || hospital.type !== 'Hospital') {
+        return res.status(400).json({ error: 'Invalid hospital ID. Must belong to an existing hospital' });
       }
     }
 
@@ -167,16 +180,6 @@ const updateUserProfile = async (req, res) => {
 
     if (updateFields.emergencyContactPhoneNumber && updateFields.emergencyContactPhoneNumber.length > 20) {
       return res.status(400).json({ error: 'Emergency contact phone number must be 20 characters or less' });
-    }
-
-    if (updateFields.hospitalId && user.type === 'Doctor') {
-      if (!mongoose.isValidObjectId(updateFields.hospitalId)) {
-        return res.status(400).json({ error: 'Invalid hospital ID format' });
-      }
-      const hospital = await User.findById(updateFields.hospitalId);
-      if (!hospital || hospital.type !== 'Hospital') {
-        return res.status(400).json({ error: 'Invalid hospital ID. Must belong to an existing hospital' });
-      }
     }
 
     if (updateFields.role && !mongoose.isValidObjectId(updateFields.role)) {
