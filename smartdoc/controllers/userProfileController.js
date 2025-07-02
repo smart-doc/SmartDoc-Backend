@@ -9,7 +9,7 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const { sendEmail } = require('../utils/emailUtility.js');
-
+const { generate } = require('generate-password');
 
 const getSignedinUserProfile = async (req, res) => {
   try{
@@ -295,6 +295,16 @@ const updateUserProfile = async (req, res) => {
             throw new Error('Doctor role not found in database');
           }
 
+          // Generate a unique password for the doctor
+          const uniquePassword = generate({
+            length: 12,
+            numbers: true,
+            symbols: true,
+            uppercase: true,
+            lowercase: true,
+            strict: true,
+          });
+
           const doctorUser = new User({
             firstName: firstname,
             lastName: lastname,
@@ -303,16 +313,39 @@ const updateUserProfile = async (req, res) => {
             status: UserStatus.PENDING,
             hospitalId: user._id,
             specialization: specialization || '',
-            password: await bcrypt.hash('defaultPassword123!', 10),
+            password: await bcrypt.hash(uniquePassword, 10),
             role: doctorRole._id,
+            emailVerified: false
           });
 
           await doctorUser.save();
-          createdDoctors.push(doctorUser.email);
+          createdDoctors.push({ email: doctorUser.email, password: uniquePassword });
+
+          // Send welcome email to the doctor
+          const emailHtml = `
+            <p><strong>Hi ${firstname} ${lastname}</strong>,<br>
+            Thank you for being added to SmartDoc as a doctor for <strong>${user.hospitalName || 'the hospital'}</strong>.<br>
+            Your account details are:<br>
+            <strong>First Name:</strong> ${firstname}<br>
+            <strong>Last Name:</strong> ${lastname}<br>
+            <strong>Email:</strong> ${email.toLowerCase()}<br>
+            <strong>Specialization:</strong> ${specialization || 'Not specified'}<br>
+            <strong>Temporary Password:</strong> ${uniquePassword}<br>
+            Please log in to verify your email and change your password for security.<br>
+            <a href="https://smartdoc-p1ca.onrender.com/login">Click here to log in</a><br>
+            If you did not expect to be added to SmartDoc, please contact our support team.<br><br>
+            Best,<br>
+            The SmartDoc Team</p>
+          `;
+
+          await sendEmail(
+            email.toLowerCase(),
+            `Welcome to SmartDoc - Your Doctor Account Details`,
+            emailHtml
+          );
           console.log('Created doctor:', doctorUser.email);
         }
 
-        console.log('Created doctors:', createdDoctors);
       } catch (error) {
         console.error('Error parsing document:', error.message);
         // Optionally, fail the request if doctor creation is critical
