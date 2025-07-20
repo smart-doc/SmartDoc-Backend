@@ -14,7 +14,7 @@ const { parse } = require('csv-parse/sync');
 const XLSX = require('xlsx');
 
 
-const generateOTP = (length = 6) => {
+const generateOTP = (length = 5) => {
   let otp = '';
   for (let i = 0; i < length; i++) {
     otp += Math.floor(Math.random() * 10);
@@ -288,7 +288,7 @@ const adminRegister = async (req, res) => {
     await sendEmail(email, 'SmartDoc Verification OTP', emailHtml);
 
     res.status(201).json({
-      message: 'Admin created. Verification OTP sent to your email.',
+      message: `Admin User created. Verification OTP sent to your email: ${email}.`,
       token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
       user: {
         _id: populatedUser._id,
@@ -354,7 +354,7 @@ const doctorRegister = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Find doctor role instead of admin role for doctors
+        // Find doctor role 
         const userRole = await Role.findOne({ name: 'Doctor' });
         if (!userRole) {
             return res.status(500).json({ error: "Doctor role not found in the system" });
@@ -401,7 +401,7 @@ const doctorRegister = async (req, res) => {
         await sendEmail(email, 'SmartDoc Verification OTP', emailHtml);
 
         res.status(201).json({
-            message: 'Doctor registered successfully. Verification OTP sent to your email.',
+            message: `Doctor User created. Verification OTP sent to your email: ${email}.`,
             token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
             user: {
                 _id: populatedUser._id,
@@ -553,7 +553,7 @@ const patientRegister = async (req, res) => {
         await sendEmail(email, 'SmartDoc Verification OTP', emailHtml);
 
         res.status(201).json({
-        message: 'Doctor created. Verification OTP sent to your email.',
+        message: `Patient User created. Verification OTP sent to your email: ${email}.`,
         token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
         user: {
             _id: populatedUser._id,
@@ -721,7 +721,7 @@ const hospitalRegister = async (req, res) => {
     await sendEmail(email, 'SMARTDOC Verification OTP', emailHtml);
 
     res.status(201).json({
-      message: 'Hospital created. Verification OTP sent to your email.',
+      message: `Hospital User created. Verification OTP sent to your email: ${email}.`,
       token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
       user: {
         _id: populatedUser._id,
