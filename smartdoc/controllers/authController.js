@@ -1,9 +1,6 @@
 const generateTokenAndSetCookie = require("../utils/generateTokenAndSetCookie.js");
 const bcrypt = require("bcrypt");
-const nodemailer = require('nodemailer')
-const crypto = require("crypto")
 require("dotenv").config();
-const path = require('path');
 const Role = require("../models/Role.js")
 const{ User, UserStatus} = require ("../models/User.js")
 const jwt = require("jsonwebtoken")
@@ -289,7 +286,7 @@ const adminRegister = async (req, res) => {
 
     res.status(201).json({
       message: `Admin User created. Verification OTP sent to your email: ${email}.`,
-      token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
+      token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' }),
       user: {
         _id: populatedUser._id,
         firstName: populatedUser.firstName,
@@ -402,7 +399,7 @@ const doctorRegister = async (req, res) => {
 
         res.status(201).json({
             message: `Doctor User created. Verification OTP sent to your email: ${email}.`,
-            token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
+            token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' }),
             user: {
                 _id: populatedUser._id,
                 firstName: populatedUser.firstName,
@@ -554,7 +551,7 @@ const patientRegister = async (req, res) => {
 
         res.status(201).json({
         message: `Patient User created. Verification OTP sent to your email: ${email}.`,
-        token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
+        token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' }),
         user: {
             _id: populatedUser._id,
             firstName: populatedUser.firstName,
@@ -592,7 +589,7 @@ const signIn = async (req, res) => {
     generateTokenAndSetCookie (user._id, res);
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { 
-      expiresIn: '15d' 
+      expiresIn: '1d' 
     });
     
     res.status(200).json({
@@ -722,7 +719,7 @@ const hospitalRegister = async (req, res) => {
 
     res.status(201).json({
       message: `Hospital User created. Verification OTP sent to your email: ${email}.`,
-      token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '15d' }),
+      token: jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1d' }),
       user: {
         _id: populatedUser._id,
         hospitalName: populatedUser.hospitalName,
